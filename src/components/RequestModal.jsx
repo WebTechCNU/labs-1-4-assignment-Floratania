@@ -1,5 +1,5 @@
 function RequestModal({ book, onClose, onConfirm }) {
-  const [note, setNote] = useState(""); // Стан для зауваження
+  const [note, setNote] = useState(""); 
 
   if (!book) return null;
 
@@ -9,7 +9,7 @@ function RequestModal({ book, onClose, onConfirm }) {
         <h2 className="text-xl font-bold">{book.title}</h2>
         <p className="text-slate-400 text-sm">{book.author}</p>
 
-        {/* Поле для зауваження */}
+        
         <div className="mt-4">
           <label className="text-xs text-slate-400 block mb-1">Додати зауваження до запиту:</label>
           <textarea
@@ -30,7 +30,7 @@ function RequestModal({ book, onClose, onConfirm }) {
             Скасувати
           </button>
           <button
-            onClick={() => onConfirm(note)} // Передаємо нотатку в функцію підтвердження
+            onClick={() => onConfirm(note)} 
             className="px-4 py-2 bg-blue-600 rounded-[5px] font-bold hover:bg-blue-500"
           >
             Надіслати запит

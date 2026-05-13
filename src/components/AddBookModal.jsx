@@ -53,7 +53,7 @@ export default function AddBookModal({
               <select
                 name="status"
                 defaultValue={editData?.status || "Available"}
-                className="w-full p-3 border rounded-xl bg-slate-50"
+                className="w-full p-3 border rounded-xl"
               >
                 <option value="Available">Вільна</option>
                 <option value="Reserved">Заброньована</option>
@@ -68,7 +68,7 @@ export default function AddBookModal({
               <select
                 name="intent"
                 defaultValue={editData?.intent || "Exchange"}
-                className="w-full p-3 border rounded-xl bg-slate-50"
+                className="w-full p-3 border rounded-xl "
               >
                 <option value="Exchange">На обмін</option>
                 <option value="Lend">Позичу</option>

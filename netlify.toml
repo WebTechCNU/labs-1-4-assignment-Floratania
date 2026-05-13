@@ -1,6 +1,21 @@
 [build]
   command = "npm run build"
   publish = "dist"
+  functions = "functions"
 
 [functions]
   directory = "functions"
+  
+  # Тепер node_bundle має бути об'єктом
+  [functions.node_bundle]
+    # Якщо ви хочете залишити всі модулі всередині бандла, 
+    # просто залиште цей список порожнім
+    external_node_modules = []
+
+[functions.esbuild]
+  loader = { ".js" = "jsx" }
+  
+[[redirects]]
+  from = "/graphql"
+  to = "/.netlify/functions/graphql"
+  status = 200
