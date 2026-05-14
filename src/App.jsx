@@ -294,11 +294,23 @@ export default function App() {
 
   useEffect(() => { if (user) loadBooks(); }, [user]);
 
-  const handleLogin = (userData) => {
-    const session = { name: userData.username, id: userData._id, email: userData.email, phone: userData.phone };
+ const handleLogin = (data) => {
+  
+  if (data.token && data.user) {
+    const session = { 
+      name: data.user.username, 
+      id: data.user._id, 
+      email: data.user.email, 
+      phone: data.user.phone 
+    };
+    
+    
     localStorage.setItem('book_user', JSON.stringify(session));
+    localStorage.setItem('token', data.token); 
+    
     setUser(session);
-  };
+  }
+};
 
   const handleLogout = () => { localStorage.removeItem('book_user'); window.location.reload(); };
 

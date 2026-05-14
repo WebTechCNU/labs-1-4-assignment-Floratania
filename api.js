@@ -1,75 +1,81 @@
-// const API_URL = "/.netlify/functions/books";
-// const AUTH_URL = "/.netlify/functions/auth";
-
-// export const api = {
-//   // Авторизація
-//   login: (username) => 
-//     fetch(AUTH_URL, { method: "POST", body: JSON.stringify({ username }) }).then(res => res.json()),
-
-//   // Книги
-//   getBooks: (title = '') => 
-//     fetch(title ? `${API_URL}?title=${title}` : API_URL).then(res => res.json()),
-
-//   addBook: (data) => 
-//     fetch(API_URL, { method: "POST", body: JSON.stringify(data) }).then(res => res.json()),
-
-//   deleteBook: (id) => 
-//     fetch(`${API_URL}/${id}`, { method: "DELETE" }),
-
-//   sendRequest: (id, request) => 
-//     fetch(`${API_URL}/${id}`, { method: "PUT", body: JSON.stringify({ newRequest: request }) }),
-
-//   updateBook: (id, data) => 
-//     fetch(`${API_URL}/${id}`, { 
-//       method: "PUT", 
-//       body: JSON.stringify(data) 
-//     }).then(res => res.json()),
-// };
-
 const GRAPHQL_URL = "/.netlify/functions/graphql";
 
+
 async function fetchGraphQL(query, variables = {}) {
+  let token = localStorage.getItem("token");
+  
+  if (token) {
+    
+    token = token.replace(/['"]+/g, '').trim().replace(/[\n\r]/g, "");
+  }
+
   const response = await fetch(GRAPHQL_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": token ? `Bearer ${token}` : "",
+    },
     body: JSON.stringify({ query, variables }),
   });
-  
+
   const result = await response.json();
-  
+
+  if (!response.ok) {
+    console.error("Server Error:", result);
+    throw new Error("Server error");
+  }
+
   if (result.errors) {
     console.error("GraphQL Errors:", result.errors);
     throw new Error(result.errors[0].message);
   }
-  
+
   return result.data;
 }
 
+
 export const api = {
-  
+  login: async (email, password) => {
+    const response = await fetch("/.netlify/functions/auth", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password, isLogin: true }),
+    });
+
+    const data = await response.json();
+    if (data.error) throw new Error(data.error);
+
+    if (data.token) {
+      const cleanToken = data.token.replace(/^"|"$/g, '').trim();
+      localStorage.setItem("token", cleanToken);
+    }
+    return data;
+  },
+
+  register: async (userData) => {
+    const response = await fetch("/.netlify/functions/auth", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...userData, isLogin: false }),
+    });
+    const data = await response.json();
+    if (data.error) throw new Error(data.error);
+    if (data.token) localStorage.setItem("token", data.token.trim());
+    return data;
+  },
+
+  logout: () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("book_user");
+  },
+
+
   getBooks: async (filter = "") => {
     const query = `
       query GetBooks($filter: String) {
         books(filter: $filter) {
-          _id
-          title
-          author
-          status
-          intent
-          description
-          ownerId
-          ownerName
-          owner
-          createdAt
-          requests {
-            from
-            text
-            user
-            message
-            isRead
-            userName
-            note
-          }
+          _id title author status intent description ownerId ownerName createdAt
+          requests { user message isRead requestedAt userId }
         }
       }
     `;
@@ -77,115 +83,69 @@ export const api = {
     return data.books;
   },
 
-  
-  addBook: async (data) => {
-    const mutation = `
-      mutation CreateBook(
-        $title: String!, 
-        $author: String!,
-        $status: String,
-        $intent: String,
-        $description: String,
-        $ownerId: String,
-        $ownerName: String
-      ) {
-        createBook(
-          title: $title, 
-          author: $author,
-          status: $status,
-          intent: $intent,
-          description: $description,
-          ownerId: $ownerId,
-          ownerName: $ownerName
-        ) {
-          _id
-          title
-          author
-        }
+  myBooks: async () => {
+    const query = `
+      query {
+        myBooks { _id title author status intent description ownerId ownerName createdAt }
       }
     `;
-    return await fetchGraphQL(mutation, data);
+    const data = await fetchGraphQL(query);
+    return data.myBooks;
   },
 
- 
-updateBook: async (id, data) => {
-  const mutation = `
-    mutation UpdateBook(
-      $id: ID!,
-      $title: String,
-      $author: String,
-      $requests: [RequestInput]
-    ) {
-      updateBook(
-        id: $id,
-        title: $title,
-        author: $author,
-        requests: $requests
-      ) {
-        _id
-        title
-        author
-        requests {
-          user
-          message
-          isRead
-          requestedAt
-          userId
+  addBook: async (bookData) => {
+    const mutation = `
+      mutation CreateBook($title: String!, $author: String!, $status: String, $intent: String, $description: String) {
+        createBook(title: $title, author: $author, status: $status, intent: $intent, description: $description) {
+          _id title author ownerId ownerName
         }
       }
-    }
-  `;
+    `;
+    return await fetchGraphQL(mutation, bookData);
+  },
 
-  const { _id, ...updateFields } = data;
-
-  return await fetchGraphQL(mutation, {
-    id,
-    ...updateFields,
-  });
-},
-
-
-  deleteBook: async (id) => {
+  
+  updateBook: async (id, updateData) => {
     const mutation = `
-      mutation DeleteBook($id: ID!) {
-        deleteBook(id: $id)
+      mutation UpdateBook($id: ID!, $title: String, $author: String, $status: String, $intent: String, $description: String) {
+        updateBook(id: $id, title: $title, author: $author, status: $status, intent: $intent, description: $description) {
+          _id title author status intent description
+        }
       }
     `;
+    return await fetchGraphQL(mutation, { id, ...updateData });
+  },
+
+  deleteBook: async (id) => {
+    const mutation = `mutation DeleteBook($id: ID!) { deleteBook(id: $id) }`;
     const data = await fetchGraphQL(mutation, { id });
     return data.deleteBook;
   },
 
-
-sendBookRequest: async (bookId, requestData) => {
-  const mutation = `
-    mutation UpdateBook($id: ID!, $req: [RequestInput]) { # Додано [] навколо RequestInput
-      updateBook(id: $id, requests: $req) {
-        _id
-        requests {
-          user
-          message
+  markRequestAsRead: async (bookId, requestIndex) => {
+    const mutation = `
+      mutation MarkRequestAsRead($bookId: ID!, $requestIndex: Int!) {
+        markRequestAsRead(bookId: $bookId, requestIndex: $requestIndex) {
+          _id
+          requests { user message isRead requestedAt userId }
         }
       }
-    }
-  `;
+    `;
+    return await fetchGraphQL(mutation, { bookId, requestIndex });
+  },
 
-  return await fetchGraphQL(mutation, { 
-    id: bookId, 
-    req: [{ 
-      user: requestData.userName,
-      message: requestData.note,
-      isRead: false 
-    }]
-  });
-},
-
-
-
-  
-  login: (username) => 
-    fetch("/.netlify/functions/auth", { 
-      method: "POST", 
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username }) 
-    }).then(res => res.json()),
-};
+  sendBookRequest: async (bookId, requestData) => {
+    const mutation = `
+      mutation UpdateBook($id: ID!, $requests: [RequestInput]) {
+        updateBook(id: $id, requests: $requests) {
+          _id
+          requests { user message isRead requestedAt userId }
+        }
+      }
+    `;
+    return await fetchGraphQL(mutation, {
+      id: bookId,
+      requests: [{ message: requestData.note }],
+    });
+  },
+};  
